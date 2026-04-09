@@ -1,4 +1,3 @@
-import argparse
 import csv
 import datetime as dt
 import logging
@@ -6,9 +5,10 @@ from collections.abc import Sequence
 from datetime import date
 from pathlib import Path
 from tkinter import StringVar, Tk, filedialog, ttk
-from typing import TypedDict
+from typing import Annotated, TypedDict
 
 import sqlalchemy as sa
+import typer
 from ofxtools.Parser import OFXTree
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
@@ -21,11 +21,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+app = typer.Typer()
 
-def main() -> None:
+
+@app.command()
+def main(
+    file_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--ofx-file",
+            "-f",
+            help="Path to the OFX file to import",
+            exists=True,
+            dir_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+) -> None:
     """Import transactions from OFX file into the database."""
     # Try to get file path from CLI, fall back to interactive dialog
-    file_path = get_file_path_from_cli()
+    if file_path and file_path.suffix.lower() != ".ofx":
+        logger.warning("File is not an OFX file: %s", file_path)
+        return
     if not file_path:
         file_path = get_file_path_interactive()
 
@@ -61,27 +78,6 @@ def main() -> None:
 
     # Export the CSV for Simplifi
     export_to_csv(new_transactions)
-
-
-def get_file_path_from_cli() -> Path | None:
-    """Get OFX file path from command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Import transactions from an OFX file into the database."
-    )
-    parser.add_argument(
-        "ofx_file",
-        nargs="?",
-        type=Path,
-        help="Path to the OFX file to import",
-    )
-    args = parser.parse_args()
-
-    if args.ofx_file:
-        if args.ofx_file.exists() and args.ofx_file.suffix.lower() == ".ofx":
-            return args.ofx_file
-        logger.warning("File not found or not an OFX file: %s", args.ofx_file)
-        return None
-    return None
 
 
 def get_file_path_interactive() -> Path | None:
@@ -272,7 +268,3 @@ def export_to_csv(transactions: Sequence[Transaction]) -> None:
             )
 
     logger.info("Exported %d transactions to %s", len(transactions), dated_filename)
-
-
-if __name__ == "__main__":
-    main()
