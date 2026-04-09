@@ -1,0 +1,20 @@
+[project]
+name = "finances"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "pythonweb2", email = "wade.a.roberts@protonmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "ofxtools>=0.9.5",
+    "sqlalchemy>=2.0.49",
+]
+
+[project.scripts]
+finances = "finances:main"
+
+[build-system]
+requires = ["uv_build>=0.11.6,<0.12.0"]
+build-backend = "uv_build"
