@@ -19,6 +19,7 @@ logging.basicConfig(
     format="%(levelname)s [%(asctime)s] - %(message)s",
     level=logging.INFO,
 )
+logging.getLogger("ofxtools").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 app = typer.Typer()
