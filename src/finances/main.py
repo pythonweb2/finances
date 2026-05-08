@@ -38,6 +38,14 @@ def main(
             resolve_path=True,
         ),
     ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Parse and validate the OFX file without inserting transactions.",
+            is_flag=True,
+        ),
+    ] = False,
 ) -> None:
     """Import transactions from OFX file into the database."""
     # Try to get file path from CLI, fall back to interactive dialog
@@ -64,6 +72,16 @@ def main(
         return
 
     logger.info("Found %d transactions in OFX file", len(ofx_transactions))
+
+    if dry_run:
+        with SessionLocal() as session:
+            new_transaction_count = count_new_transactions(session, ofx_transactions)
+        logger.info(
+            "Dry run mode enabled. %d new transaction(s) would be inserted.",
+            new_transaction_count,
+        )
+        logger.info("No database changes were made.")
+        return
 
     with SessionLocal() as session:
         new_transactions = insert_new_transactions(
@@ -195,6 +213,28 @@ def read_ofx_file(file_path: Path) -> list[TransactionDict] | None:
         return None
     else:
         return transactions
+
+
+def count_new_transactions(
+    session: Session,
+    transactions: list[TransactionDict],
+) -> int:
+    """Count how many transactions would be new without modifying the database."""
+    transaction_ids = {
+        trans["transaction_id"] for trans in transactions if trans["transaction_id"]
+    }
+    if not transaction_ids:
+        return 0
+
+    existing_ids = set(
+        session.execute(
+            sa.select(Transaction.transaction_id).where(
+                Transaction.transaction_id.in_(transaction_ids)
+            )
+        ).scalars()
+    )
+
+    return len(transaction_ids - existing_ids)
 
 
 def insert_new_transactions(
